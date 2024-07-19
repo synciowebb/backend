@@ -36,7 +36,6 @@ import java.util.*;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@RedisHash("user")
 public class User implements UserDetails {
 
     @Id

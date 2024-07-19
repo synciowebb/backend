@@ -15,7 +15,6 @@ import java.time.LocalDateTime;
 @Table(name = "story_view")
 @IdClass(PkUserStory.class)
 @EntityListeners(AuditingEntityListener.class)
-@RedisHash("story_view")
 @Data
 public class StoryView {
     @Id
