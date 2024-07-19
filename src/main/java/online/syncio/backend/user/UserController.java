@@ -41,7 +41,6 @@ public class UserController {
             }
         }
 
-        // Fetch from the database and cache the result if username is specified
         users = userService.findAll(username);
         if (username.isPresent() && !users.isEmpty()) {
             userRedisService.cacheUsers(username.get(), users);
@@ -101,7 +100,6 @@ public class UserController {
 
         List<UserDTO> users = userService.findAll(Optional.empty());
 
-        // index of id in users
         int currentIndex = users.indexOf(users.stream().filter(u -> u.getId().equals(id)).findFirst().get());
         System.out.println(currentIndex);
 
