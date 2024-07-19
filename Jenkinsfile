@@ -37,7 +37,7 @@ pipeline {
                 script {
                     def token = "squ_8cddc80d679711a331bc68b8375cc7fd6b15a1a2"
                     def sonarQubeUrl = "http://52.221.240.96:9000/api"
-                    def componentKey = "online.syncio:backend
+                    def componentKey = "online.syncio:backend"
                     def coverageThreshold = 80.0
 
                     def response = sh (
