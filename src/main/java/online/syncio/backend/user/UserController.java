@@ -34,8 +34,6 @@ public class UserController {
     @GetMapping
     public ResponseEntity<List<UserDTO>> searchUsers (@RequestParam Optional<String> username) {
         List<UserDTO> users;
-
-        // Attempt to get cached data if username is specified
         if (username.isPresent()) {
             users = userRedisService.getCachedUsers(username.get());
             if (users != null) {
