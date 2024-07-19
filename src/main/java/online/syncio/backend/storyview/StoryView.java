@@ -7,6 +7,7 @@ import online.syncio.backend.story.Story;
 import online.syncio.backend.user.User;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import org.springframework.data.redis.core.RedisHash;
 
 import java.time.LocalDateTime;
 
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 @Table(name = "story_view")
 @IdClass(PkUserStory.class)
 @EntityListeners(AuditingEntityListener.class)
+@RedisHash("story_view")
 @Data
 public class StoryView {
     @Id

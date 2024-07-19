@@ -1,6 +1,7 @@
 package online.syncio.backend.storyview;
 
 import lombok.AllArgsConstructor;
+import org.springframework.data.redis.core.RedisHash;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
