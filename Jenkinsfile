@@ -4,6 +4,7 @@ pipeline {
   environment {
     DOCKERHUB_CREDENTIALS = credentials('DOCKER_HUB_CREDENTIAL')
     VERSION = "${env.BUILD_ID}"
+    SPRING_PROFILES_ACTIVE = 'local'
 
   }
 
