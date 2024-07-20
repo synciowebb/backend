@@ -19,8 +19,8 @@ envSecrets:
   POSTGRES_DB_USERNAME: "test"
   POSTGRES_DB_PASSWORD: "sadalkdakl232"
   AWS_REGION: "us-east-1"
-  AWS_ACCESS_KEY: ""
-  AWS_SECRET_KEY: ""
+  AWS_ACCESS_KEY: "AKIAQ3EGQNM26T2VCSM7"
+  AWS_SECRET_KEY: "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"
   AWS_S3_BUCKET_UPLOOAD: "eks-project-bucket-data"
   AWS_SQS_QUEUE_NAME: "sqs_queue"
   #redis-cluster.0szwfp.ng.0001.use1.cache.amazonaws.com:6379
