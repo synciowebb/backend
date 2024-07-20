@@ -5,7 +5,10 @@ import lombok.Data;
 import online.syncio.backend.idclass.PkUserStory;
 import online.syncio.backend.story.Story;
 import online.syncio.backend.user.User;
+import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "story_view")

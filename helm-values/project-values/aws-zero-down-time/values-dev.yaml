@@ -1,0 +1,94 @@
+# Default values for smch-apiserver.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 80
+
+envSecrets:
+  ### Springboot Properties - Not change key ###
+  SPRING_JMX_ENABLED: "true"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,prometheus"
+  MANAGEMENT_METRICS_TAGS_APPLICATION: "aws-zero-downtime"
+  ### End Springboot Properties ###
+  POSTGRES_DB_URL: "jdbc:postgresql://aurora-postgresql-cluster.cluster-cfoke28w2qup.us-east-1.rds.amazonaws.com/test"
+  POSTGRES_DB_USERNAME: "test"
+  POSTGRES_DB_PASSWORD: "sadalkdakl232"
+  AWS_REGION: "us-east-1"
+  AWS_ACCESS_KEY: ""
+  AWS_SECRET_KEY: ""
+  AWS_S3_BUCKET_UPLOOAD: "eks-project-bucket-data"
+  AWS_SQS_QUEUE_NAME: "sqs_queue"
+  #redis-cluster.0szwfp.ng.0001.use1.cache.amazonaws.com:6379
+  AWS_SQS_QUEUE_URL: "https://sqs.us-east-1.amazonaws.com/846338211683/sqs_queue"
+  REDIS_HOST: "redis-cluster.0szwfp.ng.0001.use1.cache.amazonaws.com"
+  REDIS_PORT: "6379"
+  ENV: "dev"
+  SERVER_PORT: "80"
+  SERVICE_NAME: "aws-zero-downtime"
+  VERSION: "0.0.1"
+  SERVICE_PATH: "/api/v0"
+  ENABLE_SWAGGER: "true"
+  QUARTZ_SCHEDULE: never
+  LOGGING_LEVEL_ROOT: INFO
+  TZ: "Asia/Ho_Chi_Minh"
+  #connection pool
+  HIKARI_POOL_SIZE: "10"
+  CORS_ORIGINS: "*"
+  CORS_METHODS: "*"
+  CORS_HEADERS: "*"
+  CORS_CREDENTIALS: "false"
+
+hostAliases:
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 80
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+
+#ingress:
+#  enabled: true
+#  annotations: {}
+#  hosts:
+#    - host: d3thkkrjaegab5.cloudfront.net
+#      paths:
+#        - path: /api/aws-zero-downtime/v0
+#          pathType: Prefix
+#
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: public
+  hosts:
+    - host: eks.bootcamp.net
+      paths:
+        - path: /
+          pathType: Prefix
+livenessProbe:
+  httpGet:
+    path: /api/v0/actuator/health/liveness
+    port: 80
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+readinessProbe:
+  httpGet:
+    path: /api/v0/actuator/health/readiness
+    port: 80
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+# metrics:
+#   enabled: true
+#   serviceMonitor:
+#     enabled: true
+#     path: /api/aws-zero-downtime/v0/actuator/prometheus

@@ -1,0 +1,62 @@
+# Default values for smch-apiserver.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+image:
+  repository: " daotqph08312/hello-aws"
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "002"
+replicaCount: 1
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 2
+  targetCPUUtilizationPercentage: 80
+
+envSecrets:
+
+hostAliases:
+
+
+service:
+  enabled: true
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 512Mi
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: public
+  hosts:
+    - host: kubernetes.app.com
+      paths:
+        - path: /api/v0
+          pathType: Prefix
+#livenessProbe:
+#  httpGet:
+#    path: /api/aws-zero-downtime/v0/actuator/health/liveness
+#    port: 80
+#  initialDelaySeconds: 60
+#  periodSeconds: 10
+#  timeoutSeconds: 5
+#readinessProbe:
+#  httpGet:
+#    path: /api/aws-zero-downtime/v0/actuator/health/readiness
+#    port: 80
+#  initialDelaySeconds: 60
+#  periodSeconds: 10
+#  timeoutSeconds: 5
+
+# metrics:
+#   enabled: true
+#   serviceMonitor:
+#     enabled: true
+#     path: /api/aws-zero-downtime/v0/actuator/prometheus

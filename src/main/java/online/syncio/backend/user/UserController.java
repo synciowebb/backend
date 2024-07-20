@@ -34,6 +34,8 @@ public class UserController {
     @GetMapping
     public ResponseEntity<List<UserDTO>> searchUsers (@RequestParam Optional<String> username) {
         List<UserDTO> users;
+
+        // Attempt to get cached data if username is specified
         if (username.isPresent()) {
             users = userRedisService.getCachedUsers(username.get());
             if (users != null) {
@@ -41,6 +43,7 @@ public class UserController {
             }
         }
 
+        // Fetch from the database and cache the result if username is specified
         users = userService.findAll(username);
         if (username.isPresent() && !users.isEmpty()) {
             userRedisService.cacheUsers(username.get(), users);
@@ -100,6 +103,7 @@ public class UserController {
 
         List<UserDTO> users = userService.findAll(Optional.empty());
 
+        // index of id in users
         int currentIndex = users.indexOf(users.stream().filter(u -> u.getId().equals(id)).findFirst().get());
         System.out.println(currentIndex);
 
