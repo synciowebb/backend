@@ -79,7 +79,7 @@ pipeline {
 
         stage('Update Image Tag in GitOps') {
             steps {
-                checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[credentialsId: 'git-ssh-syncio', url: 'git@github.com:synciowebb/deployment-folder.git']])
+                checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[credentialsId: 'git-ssh', url: 'git@github.com:synciowebb/deployment-folder.git']])
                 script {
                     sh '''
                     sed -i "s/image:.*/image: chuthanh\\/dockerfile-backend:${VERSION}/" aws/backend-deployment.yaml
