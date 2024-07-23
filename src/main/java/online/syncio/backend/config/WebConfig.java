@@ -12,6 +12,5 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE","OPTIONS","HEAD");
 
 
-
     }
 }
