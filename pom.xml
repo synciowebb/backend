@@ -169,7 +169,6 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
-                    <createDependencyReducedPom>false</createDependencyReducedPom>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>

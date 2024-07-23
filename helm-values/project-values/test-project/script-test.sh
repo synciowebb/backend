@@ -1,1 +1,0 @@
-helm upgrade kubernetes-bootcamp helm-values/chart-template/ -f helm-values/project-values/test-project/values-dev.yaml --namespace=ciaws -i --atomic --cleanup-on-fail --wait --timeout=5m --set fullnameOverride="kubernetes-bootcamp",image.repository=daotqph08312/hello-aws,image.tag=002
