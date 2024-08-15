@@ -43,3 +43,7 @@ build/
 
 # https://github.com/takari/maven-wrapper#usage-without-binary-jar
 .mvn/wrapper/maven-wrapper.jar
+et --hard e247798326c608403524b769c6ce1019597f4392
+src/main/resources/static/syncio-bf6ca-firebase-adminsdk-68fpl-88eea603ef.json
+src/main/resources/static/firebase_key_base64.txt
+.env
