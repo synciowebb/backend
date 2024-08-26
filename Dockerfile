@@ -15,7 +15,7 @@ WORKDIR /opt
 COPY . .
 
 # Run Maven to clean and install the project, which will build the JAR file
-# RUN mvn clean install
+RUN mvn clean install
 
 # Use a separate, smaller image for the final stage
 FROM openjdk:17-slim
