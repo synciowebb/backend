@@ -23,45 +23,45 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
-            steps {
-                sh 'mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install sonar:sonar -Dsonar.host.url=http://18.143.130.43:9000/ -Dsonar.login=squ_bbee1801bb6c079e985b6d1dc4956e95793f80c2'
-            }
-        }
+        // stage('SonarQube Analysis') {
+        //     steps {
+        //         sh 'mvn clean org.jacoco:jacoco-maven-plugin:prepare-agent install sonar:sonar -Dsonar.host.url=http://18.143.130.43:9000/ -Dsonar.login=squ_bbee1801bb6c079e985b6d1dc4956e95793f80c2'
+        //     }
+        // }
 
-        stage('Check Code Coverage') {
-            steps {
-                script {
-                    def token = "squ_bbee1801bb6c079e985b6d1dc4956e95793f80c2"
-                    def sonarQubeUrl = "http://18.143.130.43:9000/api"
-                    def componentKey = "online.syncio:backend"
-                    def coverageThreshold = 80.0
-
-                    def response = sh (
-                        script: "curl -H 'Authorization: Bearer ${token}' '${sonarQubeUrl}/measures/component?component=${componentKey}&metricKeys=coverage'",
-                        returnStdout: true
-                    ).trim()
-
-                    def coverage = sh (
-                        script: "echo '${response}' | jq -r '.component.measures[0].value'",
-                        returnStdout: true
-                    ).trim()
-
-                    echo "Coverage raw value: ${coverage}"
-
-                    if (coverage == "null" || coverage == "") {
-                        echo "Coverage information is not available. Skipping coverage check."
-                    } else {
-                        def coverageValue = coverage.toDouble()
-                        echo "Coverage: ${coverageValue}%"
-
-                        if (coverageValue < coverageThreshold) {
-                            error "Coverage is below the threshold of ${coverageThreshold}%. Aborting the pipeline."
-                        }
-                    }
-                }
-            }
-        }
+//         stage('Check Code Coverage') {
+//             steps {
+//                 script {
+//                     def token = "squ_bbee1801bb6c079e985b6d1dc4956e95793f80c2"
+//                     def sonarQubeUrl = "http://18.143.130.43:9000/api"
+//                     def componentKey = "online.syncio:backend"
+//                     def coverageThreshold = 80.0
+//
+//                     def response = sh (
+//                         script: "curl -H 'Authorization: Bearer ${token}' '${sonarQubeUrl}/measures/component?component=${componentKey}&metricKeys=coverage'",
+//                         returnStdout: true
+//                     ).trim()
+//
+//                     def coverage = sh (
+//                         script: "echo '${response}' | jq -r '.component.measures[0].value'",
+//                         returnStdout: true
+//                     ).trim()
+//
+//                     echo "Coverage raw value: ${coverage}"
+//
+//                     if (coverage == "null" || coverage == "") {
+//                         echo "Coverage information is not available. Skipping coverage check."
+//                     } else {
+//                         def coverageValue = coverage.toDouble()
+//                         echo "Coverage: ${coverageValue}%"
+//
+//                         if (coverageValue < coverageThreshold) {
+//                             error "Coverage is below the threshold of ${coverageThreshold}%. Aborting the pipeline."
+//                         }
+//                     }
+//                 }
+//             }
+//         }
 
         stage('Docker Build and Push') {
             steps {

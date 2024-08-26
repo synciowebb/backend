@@ -1,16 +1,12 @@
 package online.syncio.backend.report;
 
-
-import online.syncio.backend.config.RabbitMQConfig;
 import jakarta.transaction.Transactional;
 import online.syncio.backend.exception.NotFoundException;
 import online.syncio.backend.post.Post;
 import online.syncio.backend.post.PostRepository;
 import online.syncio.backend.user.User;
 import online.syncio.backend.user.UserRepository;
-import online.syncio.backend.utils.Constants;
 import online.syncio.backend.utils.JobQueue;
-import org.apache.coyote.BadRequestException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
@@ -22,20 +18,19 @@ import java.util.UUID;
 
 @Service
 public class ReportService {
+
+    @Value("${url.frontend}")
+    public String frontendUrl;
     private final ReportRepository reportRepository;
     private final PostRepository postRepository;
     private final UserRepository userRepository;
     private final RabbitTemplate rabbitTemplate;
 
-    private final RabbitMQConfig config;
-
-    public ReportService(ReportRepository reportRepository, PostRepository postRepository, UserRepository userRepository,RabbitTemplate rabbitTemplate, RabbitMQConfig config) {
+    public ReportService(ReportRepository reportRepository, PostRepository postRepository, UserRepository userRepository,RabbitTemplate rabbitTemplate) {
         this.reportRepository = reportRepository;
         this.postRepository = postRepository;
         this.userRepository = userRepository;
         this.rabbitTemplate = rabbitTemplate;
-        this.config = config;
-
     }
 
 //    CRUD
@@ -65,7 +60,10 @@ public class ReportService {
     }
     public void sendImageForVerification(String imageUrl, UUID postId) {
         if (imageUrl != null && !imageUrl.isEmpty()) {
-            String fullImageUrl = Constants.BACKEND_URL + "api/v1/posts/images/" + imageUrl + "?postId=" + postId;
+            String firebaseBaseUrl = "https://firebasestorage.googleapis.com/v0/b/syncio-bf6ca.appspot.com/o/";
+            String encodedImageUrl = imageUrl.replaceAll("/", "%2F");
+            String fullImageUrl = firebaseBaseUrl + encodedImageUrl + "?alt=media" + "?postId=" + postId;;
+//            String fullImageUrl = frontendUrl + "api/v1/posts/images/" + imageUrl + "?postId=" + postId;
             try {
                 System.out.println("Sending image for verification: " + fullImageUrl);
                 rabbitTemplate.convertAndSend(JobQueue.EXCHANGE_CHECKIMAGE_AI, JobQueue.ROUTING_KEY_CHECKIMAGE_AI, fullImageUrl);

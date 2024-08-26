@@ -28,14 +28,8 @@ public class LabelController {
     }
 
     @GetMapping("/buy")
-    public ResponseEntity<List<LabelResponseDTO>> getLabelsWithPurchaseStatus(@RequestParam final UUID user_id) {
+    public ResponseEntity<List<LabelResponseDTO>> getLabelsWithPurchaseStatus(@RequestParam(required = false) final UUID user_id) {
         List<LabelResponseDTO> labels =  labelService.getAllLabelWithPurcharseStatus(user_id);
-        return ResponseEntity.ok(labels);
-    }
-
-    @GetMapping("/buyed")
-    public ResponseEntity<List<LabelResponseDTO>> getLabelsUserPurchase(@RequestParam final UUID user_id) {
-        List<LabelResponseDTO> labels =  labelService.getAllLabelUserPurchased(user_id);
         return ResponseEntity.ok(labels);
     }
 

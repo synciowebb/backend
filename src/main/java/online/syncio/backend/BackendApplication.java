@@ -10,15 +10,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
+import java.util.TimeZone;
 
 @SpringBootApplication
 @EnableJpaAuditing
 @RequiredArgsConstructor
+@EnableCaching
 public class BackendApplication {
 
 
@@ -28,6 +31,7 @@ public class BackendApplication {
 	@Autowired
 	PasswordEncoder passwordEncoder;
 	public static void main(String[] args) {
+		TimeZone.setDefault(TimeZone.getTimeZone("GMT+7:00"));
 		SpringApplication.run(BackendApplication.class, args);
 	}
 

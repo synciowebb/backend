@@ -3,6 +3,7 @@ package online.syncio.backend.story;
 import lombok.AllArgsConstructor;
 import online.syncio.backend.exception.AppException;
 import online.syncio.backend.storyview.StoryViewRepository;
+import online.syncio.backend.user.StatusEnum;
 import online.syncio.backend.user.User;
 import online.syncio.backend.utils.AuthUtils;
 import online.syncio.backend.utils.FileUtils;
@@ -36,13 +37,14 @@ public class StoryService {
 
     public UserStoryDTO findUserWithAtLeastOneStoryAfterCreatedDate(final UUID userId, final LocalDateTime createdDate) {
         final User user = storyRepository.findUserWithAtLeastOneStoryAfterCreatedDate(userId, createdDate);
+        if(user == null) return null;
         final UUID currentUserId = authUtils.getCurrentLoggedInUserId();
         return storyMapper.mapToUserStoryDTO(user, new UserStoryDTO(), currentUserId);
     }
 
 
     public List<StoryDTO> findAllByCreatedBy_IdAndCreatedDateAfterOrderByCreatedDate(final UUID userId, final LocalDateTime createdDate) {
-        final List<Story> stories = storyRepository.findAllByCreatedBy_IdAndCreatedDateAfterOrderByCreatedDate(userId, createdDate);
+        final List<Story> stories = storyRepository.findAllByCreatedBy_IdAndCreatedBy_StatusAndCreatedDateAfterOrderByCreatedDate(userId, StatusEnum.ACTIVE, createdDate);
         final  UUID viewerId = authUtils.getCurrentLoggedInUserId();
         return stories.stream()
                 .map(story -> {

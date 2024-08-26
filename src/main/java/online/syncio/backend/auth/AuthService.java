@@ -1,16 +1,15 @@
 package online.syncio.backend.auth;
 
+import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import online.syncio.backend.auth.request.RegisterDTO;
-import online.syncio.backend.exception.AppException;
-import online.syncio.backend.exception.DataNotFoundException;
-import online.syncio.backend.exception.ExpiredTokenException;
-import online.syncio.backend.exception.InvalidParamException;
+import online.syncio.backend.exception.*;
 import online.syncio.backend.setting.SettingService;
 import online.syncio.backend.user.RoleEnum;
 import online.syncio.backend.user.StatusEnum;
 import online.syncio.backend.user.User;
 import online.syncio.backend.user.UserRepository;
+import online.syncio.backend.utils.AuthUtils;
 import online.syncio.backend.utils.CustomerForgetPasswordUtil;
 import online.syncio.backend.utils.CustomerRegisterUtil;
 import online.syncio.backend.utils.JwtTokenUtils;
@@ -30,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.UnsupportedEncodingException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -44,9 +44,9 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenUtils jwtTokenUtil;
     private final AuthenticationManager authenticationManager;
-    private final  TokenService tokenService;
     private final SettingService settingService;
     private final MessageSource messageSource;
+    private final AuthUtils authUtils;
 
     @Value("${url.frontend}")
     private String urlFE;
@@ -54,7 +54,6 @@ public class AuthService {
         // TODO Auto-generated method stub
         return userRepository.existsByEmail(email);
     }
-
     public UUID getCurrentLoggedInUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if(authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken) {
@@ -69,14 +68,17 @@ public class AuthService {
         // Check if the email already exists
         String email = userDTO.getEmail();
         if( userRepository.existsByEmail(email)) {
-            throw new AppException(HttpStatus.BAD_REQUEST,"Email đã tồn tại",null);
+            String message = messageSource.getMessage("user.register.email.exist", null, LocaleContextHolder.getLocale());
+            throw new AppException(HttpStatus.CONFLICT, message, null);
         }
         String username = userDTO.getUsername();
         if( userRepository.existsByUsername(username)) {
-            throw new AppException(HttpStatus.BAD_REQUEST,"username đã tồn tại",null);
+            String message = messageSource.getMessage("user.register.username.exist", null, LocaleContextHolder.getLocale());
+            throw new AppException(HttpStatus.CONFLICT, message, null);
         }
         if (!userDTO.getPassword().equals(userDTO.getRetypePassword())) {
-            throw new AppException(HttpStatus.BAD_REQUEST,"Mật khẩu không khớp",null);
+            String message = messageSource.getMessage("user.register.password.not.match", null, LocaleContextHolder.getLocale());
+            throw new AppException(HttpStatus.BAD_REQUEST, message, null);
         }
 
         String encodedPassword = passwordEncoder.encode(userDTO.getPassword());
@@ -94,12 +96,12 @@ public class AuthService {
         Token confirmationToken = Token.builder()
                 .token(token)
                 .user(newUser)
-                .expirationDate(LocalDateTime.now().plusMinutes(30)) //30 minutes
+                .expirationDate(LocalDateTime.now().plusMinutes(1)) //30 minutes
                 .revoked(false)
                 .build();
 
         tokenRepository.save(confirmationToken);
-        String link = urlFE + "/confirm-user-register?token=" + token;
+        String link = urlFE + "confirm-user-register?token=" + token;
         CustomerForgetPasswordUtil.sendEmailTokenRegister(link, email, settingService);
         return newUser;
     }
@@ -107,20 +109,25 @@ public class AuthService {
 
 
     public String login(
-            String email,
+            String emailOrUsername,
             String password
     ) throws Exception {
         Optional<User> optionalUser = Optional.empty();
         String subject = null;
-        if(optionalUser.isEmpty() && email != null) {
-            optionalUser =   userRepository.findByEmail(email);
-            subject = email;
+        if(emailOrUsername != null) {
+            if(emailOrUsername.contains("@")) {
+                optionalUser = userRepository.findByEmail(emailOrUsername);
+            } else {
+                optionalUser = userRepository.findByUsername(emailOrUsername);
+            }
         }
 
         String message = messageSource.getMessage("user.login.failed", null, LocaleContextHolder.getLocale());
         if(optionalUser.isEmpty()) {
             throw new DataNotFoundException(message);
         }
+
+        subject = optionalUser.get().getEmail();
 
         User existingUser = optionalUser.get();
 
@@ -177,7 +184,9 @@ public class AuthService {
     }
     public String updateResetPasswordToken(String email) throws Exception {
         User user = userRepository.findByEmail(email).orElseThrow(() -> new DataNotFoundException("User not found"));;
-
+            if(!user.getStatus().equals(StatusEnum.ACTIVE)) {
+                throw new DataNotFoundException("User is not active, please contact admin for more information");
+            }
             String token = RandomString.make(30);
 
             user.setResetPasswordToken(token);
@@ -202,6 +211,37 @@ public class AuthService {
     }
     public void updateAvatar(MultipartFile file) throws DataNotFoundException {
         //      Upload S3 AWS
+    }
+
+    public void resendRegistrationEmail(String email) throws DataNotFoundException, MessagingException, UnsupportedEncodingException {
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new DataNotFoundException("User not found"));
+        String token = UUID.randomUUID().toString();
+        Token confirmationToken = Token.builder()
+                .token(token)
+                .user(user)
+                .expirationDate(LocalDateTime.now().plusMinutes(1))
+                .revoked(false)
+                .build();
+
+        tokenRepository.save(confirmationToken);
+        String link = urlFE + "confirm-user-register?token=" + token;
+        CustomerForgetPasswordUtil.sendEmailTokenRegister(link, email, settingService);
+    }
+
+
+    public Boolean changePassword(final String oldPassword, final String newPassword) {
+        final UUID currentUserId = authUtils.getCurrentLoggedInUserId();
+        final User user = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new NotFoundException(User.class, "id", currentUserId.toString()));
+
+        if (passwordEncoder.matches(oldPassword, user.getPassword())) {
+            user.setPassword(passwordEncoder.encode(newPassword));
+            userRepository.save(user);
+            return true;
+        }
+        else {
+            throw new AppException(HttpStatus.FORBIDDEN, "Old password is incorrect", null);
+        }
     }
 
 }

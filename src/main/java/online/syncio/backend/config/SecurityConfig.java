@@ -85,14 +85,15 @@ public class SecurityConfig implements WebMvcConfigurer {
         @Bean
         public SecurityFilterChain securityFilterChain(HttpSecurity http)  throws Exception{
             http
-                    .csrf(AbstractHttpConfigurer::disable)
+                    .addFilterBefore(jwtTokenFilter, UsernamePasswordAuthenticationFilter.class)
                     .authorizeHttpRequests(requests -> {
                         requests
-                                .requestMatchers( "/api/v1/users/login").permitAll() // Thay thế antMatchers bằng requestMatchers
-                                .anyRequest().authenticated();
+                        .anyRequest().permitAll()
+                        ;
                     })
-                    .addFilterBefore(jwtTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
+                    .csrf(AbstractHttpConfigurer::disable);
+            http.securityMatcher(String.valueOf(EndpointRequest.toAnyEndpoint()));
             return http.build();
         }
     }

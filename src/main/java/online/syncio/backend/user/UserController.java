@@ -1,29 +1,26 @@
 package online.syncio.backend.user;
 
+import com.google.zxing.WriterException;
 import jakarta.validation.Valid;
-import online.syncio.backend.auth.responses.LoginResponse;
-import online.syncio.backend.auth.responses.ResponseObject;
-import online.syncio.backend.exception.*;
-import org.springframework.beans.factory.annotation.Autowired;
+import online.syncio.backend.auth.responses.AuthResponse;
 import online.syncio.backend.exception.AppException;
-import online.syncio.backend.exception.NotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.*;
 
 @RestController
-@RequestMapping(value = "/api/v1/users")
+@RequestMapping(value = "${api.prefix}/users")
 public class UserController {
 
     private final UserService userService;
-
-
     private final UserRedisService userRedisService;
+
+
     public UserController (final UserService userService, PasswordEncoder passwordEncoder, UserRedisService userRedisService) {
         this.userService = userService;
         this.userRedisService = userRedisService;
@@ -68,13 +65,13 @@ public class UserController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<UserDTO>> searchUsers (@RequestParam(name = "username", required = false) final String username,
+    public ResponseEntity<List<UserSearchDTO>> searchUsers (@RequestParam(name = "username", required = false) final String username,
                                                       @RequestParam(name = "email", required = false) final String email) {
         return ResponseEntity.ok(userService.findTop20ByUsernameContainingOrEmailContaining(username, email));
     }
 
     @PostMapping
-    public ResponseEntity<UUID> createUser (@RequestBody @Valid final UserDTO userDTO) {
+    public ResponseEntity<UUID> createUser (@RequestBody @Valid final UserDTO userDTO) throws IOException, WriterException {
         if (userRedisService.usernameExists(userDTO.getUsername())) {
             throw new AppException(HttpStatus.BAD_REQUEST, "Username already exists!", null);
         }
@@ -83,8 +80,7 @@ public class UserController {
             throw new AppException(HttpStatus.BAD_REQUEST, "Email already exists!", null);
         }
 
-        userService.create(userDTO);
-        return ResponseEntity.ok(userDTO.getId());
+        return ResponseEntity.ok(userService.create(userDTO));
     }
 
     @PutMapping("/{id}")
@@ -111,47 +107,19 @@ public class UserController {
 
 
     @GetMapping("/profile/{id}")
-    @ResponseBody
     public ResponseEntity<UserProfile> getUserProfile (@PathVariable(name = "id") final UUID id) {
         return ResponseEntity.ok(userService.getUserProfile(id));
     }
 
-    /**
-     * Get the profile of a user by their id.
-     * Use for case when the user already logged in.
-     * @param id
-     * @return
-     */
-    @PostMapping("/profile/{id}")
-    @ResponseBody
-    public ResponseEntity<UserProfile> getUserProfile2 (@PathVariable(name = "id") final UUID id) {
-        return ResponseEntity.ok(userService.getUserProfile(id));
+    @GetMapping("/profile-test/{id}")
+    public ResponseEntity<UserProfile> getUserProfileNotUseCache (@PathVariable(name = "id") final UUID id) {
+        return ResponseEntity.ok(userService.getUserProfileNotUseCache(id));
     }
 
     @PutMapping("/update-profile/{id}")
-    public ResponseEntity<?> updateProfile(@PathVariable(name = "id") final UUID id, @RequestBody UpdateProfileDTO user) {
-        try {
-            User userDetail = userService.updateProfile( id,user);
-            LoginResponse loginResponse = LoginResponse
-                    .builder()
-                    .message("Login successfully")
-                    .bio(userDetail.getBio())
-                    .email(userDetail.getEmail())
-                    .username(userDetail.getUsername())
-                    .roles(userDetail.getAuthorities().stream().map(GrantedAuthority::getAuthority).toList())
-                    .id(userDetail.getId())
-                    .build();
-            return ResponseEntity.ok().body(ResponseObject.builder()
-                    .message("Update successfully")
-                    .data(loginResponse)
-                    .status(HttpStatus.OK)
-                    .build());
-
-        } catch (NotFoundException ex) {
-            return ResponseEntity.notFound().build();
-        } catch (Exception ex) {
-            return ResponseEntity.badRequest().body( ex.getMessage());
-        }
+    public ResponseEntity<AuthResponse> updateProfile(@PathVariable(name = "id") final UUID id, @RequestBody @Valid UpdateProfileDTO user) {
+        final AuthResponse userDetail = userService.updateProfile(id, user);
+        return ResponseEntity.ok(userDetail);
     }
 
     @PostMapping("/update-avatar")
@@ -165,9 +133,40 @@ public class UserController {
         return userService.getNewUsersLastNDays(days);
     }
 
-    @GetMapping("/outstanding")
-    public ResponseEntity<List<UserDTO>> getOutstandingUsers() {
-        return ResponseEntity.ok(userService.getOutstandingUsers());
+    @GetMapping("/generateUserQRCode/{userId}")
+    public String generateUserQRCode(@PathVariable UUID userId) throws WriterException, IOException {
+        String qrCodeText = userId.toString();
+        String qrCodeUrl = userService.generateQRCodeAndUploadToFirebase(qrCodeText, 300, 300);
+
+        userService.saveQRcode(qrCodeUrl,userId);
+
+        return "QR code generated and saved at " + qrCodeUrl;
+    }
+
+    //getQrcode
+    @GetMapping("/getQrcode/{userId}")
+    public String getQrcode(@PathVariable UUID userId) {
+        return userService.getQrcode(userId);
+    }
+
+
+    @GetMapping("/username/{username}")
+    public ResponseEntity<Map<String, UUID>> getUserIdByUsername (@PathVariable(name = "username") final String username) {
+        final UUID userId = userService.getUserIdByUsername(username);
+        return ResponseEntity.ok(Collections.singletonMap("userId", userId));
+    }
+
+
+    @GetMapping("/check-status/{id}")
+    public ResponseEntity<Map<String, String>> checkUserStatusById(@PathVariable(name = "id") final UUID id) {
+        final String status = userService.checkUserStatusById(id);
+        return ResponseEntity.ok(Collections.singletonMap("status", status));
+    }
+
+
+    @GetMapping("/count")
+    public ResponseEntity<Long> countUsers() {
+        return ResponseEntity.ok(userService.countUsers());
     }
 
 }

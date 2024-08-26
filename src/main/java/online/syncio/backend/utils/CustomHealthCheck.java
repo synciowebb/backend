@@ -5,6 +5,8 @@ import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.stereotype.Component;
 
 import java.net.InetAddress;
+import java.util.HashMap;
+import java.util.Map;
 @Component
 public class CustomHealthCheck implements HealthIndicator {
 

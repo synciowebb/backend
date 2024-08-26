@@ -1,6 +1,6 @@
 package online.syncio.backend.label;
 
-import online.syncio.backend.billing.BillingRepository;
+import lombok.RequiredArgsConstructor;
 import online.syncio.backend.exception.AppException;
 import online.syncio.backend.exception.NotFoundException;
 import online.syncio.backend.user.User;
@@ -8,39 +8,27 @@ import online.syncio.backend.user.UserRepository;
 import online.syncio.backend.userlabelinfo.UserLabelInfo;
 import online.syncio.backend.userlabelinfo.UserLabelInfoRepository;
 import online.syncio.backend.utils.AuthUtils;
+import online.syncio.backend.utils.FileUtils;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class LabelService {
     private final LabelRepository labelRepository;
     private final UserRepository userRepository;;
-    private final BillingRepository billingRepository;
     private final UserLabelInfoRepository userLabelInfoRepository;
     private final AuthUtils authUtils;
-
-    public LabelService(LabelRepository labelRepository, UserRepository userRepository, BillingRepository billingRepository, UserLabelInfoRepository userLabelInfoRepository, AuthUtils authUtils) {
-        this.labelRepository = labelRepository;
-        this.userRepository = userRepository;
-        this.billingRepository = billingRepository;
-        this.userLabelInfoRepository = userLabelInfoRepository;
-        this.authUtils = authUtils;
-    }
+    private final FileUtils fileUtils;
+    private final LabelRedisService labelRedisService;
 
     // MAP Label -> LabelDTO
     private LabelDTO mapToDTO(final Label label, final LabelDTO labelDTO) {
@@ -72,80 +60,119 @@ public class LabelService {
     }
 
     // CRUD
+
     public List<LabelDTO> findAll(){
-        final List<Label> labels = labelRepository.findAll(Sort.by("createdDate").descending());
-        return labels.stream()
-                .map(label -> mapToDTO(label, new LabelDTO()))
-                .toList();
+
+//        final List<Label> labels = labelRepository.findAll(Sort.by("createdDate").descending());
+////        return labels.stream()
+////                .map(label -> mapToDTO(label, new LabelDTO()))
+////                .toList();
+        List<LabelDTO> labelDTOS = labelRedisService.findALl();
+        if (labelDTOS == null) {
+            final List<Label> labels = labelRepository.findAll(Sort.by("createdDate").descending());
+            labelDTOS = labels.stream()
+                    .map(label -> mapToDTO(label, new LabelDTO()))
+                    .toList();
+            labelRedisService.cacheLabels(labelDTOS);
+        }
+        return labelDTOS;
     }
 
-    public List<LabelResponseDTO> getAllLabelWithPurcharseStatus (UUID user_id) {
+
+    public List<LabelResponseDTO> getAllLabelWithPurcharseStatus(UUID user_id) {
         // lay ra tat ca cac label tu db
         List<Label> labels = labelRepository.findAll();
 
-        // lay thong tin cac label ma nguoi dung da mua
-        List<UserLabelInfo> userLabelInfos = userLabelInfoRepository.findByUserId(user_id);
+        Set<UUID> purcharsedLabelIds;
 
-        // chuyen danh sach UserLabelInfo sang danh sach ID Label ma nguoi dung da mua
-        Set<UUID> purcharsedLabelIds = userLabelInfos.stream()
-                .map(userLabelInfo -> userLabelInfo.getLabel().getId())
-                .collect(Collectors.toSet());
+        if(user_id != null) {
+            // lay thong tin cac label ma nguoi dung da mua
+            List<UserLabelInfo> userLabelInfos = userLabelInfoRepository.findByUserId(user_id);
+
+            // chuyen danh sach UserLabelInfo sang danh sach ID Label ma nguoi dung da mua
+            purcharsedLabelIds = userLabelInfos.stream()
+                    .map(userLabelInfo -> userLabelInfo.getLabel().getId())
+                    .collect(Collectors.toSet());
+        }
+        else {
+            purcharsedLabelIds = new HashSet<>();
+        }
+
+        // dem so
+        List<UserLabelInfo> listU = userLabelInfoRepository.findAll();
+        List<UUID> listID = listU.stream()
+                .map(b -> b.getLabel().getId())
+                .toList();
+
+        Map<UUID, Integer> countMap = new HashMap<>();
+
+        for (UUID id : listID) {
+            countMap.put(id, countMap.getOrDefault(id, 0) + 1);
+        }
 
         // tao danh sach DTO de tra ve, moi DTO chua thong tin label va trang thai mua
         return labels.stream().map(
                 label -> {
                     boolean isPurcharse = purcharsedLabelIds.contains(label.getId());
-                    return new LabelResponseDTO(label, isPurcharse);
+                    int quantitySold = 0;
+                    if (countMap.containsKey(label.getId())) {
+                        quantitySold = countMap.get(label.getId());
+                    }
+                    return new LabelResponseDTO(label, isPurcharse, quantitySold);
                 }).collect(Collectors.toList());
     }
 
-    public String processUploadedFile(MultipartFile file, String newName) {
-
+    private String processUploadedFile(MultipartFile file, Boolean isKeepCurrentName) {
         String fileName = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
-
         List<String> extensions = Arrays.asList(".gif", ".png", ".jpeg", ".jpg", ".bmp", ".webp");
         if (!extensions.contains(fileName.substring(fileName.lastIndexOf(".")))) {
             throw new AppException(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Invalid image format", null);
         }
-        else {
-            fileName = newName + fileName.substring(fileName.lastIndexOf("."));
-            System.out.println("old file name: " + file.getOriginalFilename());
-            System.out.println("new file name: " + fileName);
-            System.out.println("file extension: " + fileName.substring(fileName.lastIndexOf(".")));
+        if (file.getSize() > 10 * 1024 * 1024) {
+            throw new AppException(HttpStatus.PAYLOAD_TOO_LARGE, "File size too large", null);
         }
-
-        java.nio.file.Path uploadDir = Paths.get("uploads");
-
         try {
-            if (!Files.exists(uploadDir)) {
-                Files.createDirectories(uploadDir);
-            }
-
-            java.nio.file.Path destination = Paths.get(uploadDir.toString(), fileName);
-            Files.copy(file.getInputStream(), destination, StandardCopyOption.REPLACE_EXISTING);
+            // save file
+            return fileUtils.storeFile(file, "labels", isKeepCurrentName);
         } catch (IOException e){
-            throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "Error occurred while copying", e);
+            throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "Error occurred while saving file", e);
         }
-
-        return fileName;
     }
+
+
+    /**
+     * Get file name from file path. Example: labels/1234-5678-90ab-cdef.jpg -> 1234-5678-90ab-cdef
+     * @param filePath
+     * @return the file name without extension or path
+     */
+    private String getFileName(String filePath) {
+        // get file name
+        String name = filePath.replace("labels/", "");
+        int lastIndexOfDot = name.lastIndexOf(".");
+        if (lastIndexOfDot != -1) {
+            return name.substring(0, lastIndexOfDot);
+        }
+        return name;
+    }
+
 
     public LabelDTO create(final LabelUploadRequest labelUploadRequest) throws IOException {
         User user = userRepository.findById(authUtils.getCurrentLoggedInUserId())
                 .orElseThrow(() -> new NotFoundException(User.class, "id", labelUploadRequest.labelDTO().getCreatedBy().toString()));
+
         Label label = new Label();
 
         if (labelUploadRequest.file() != null) {
-            String newFileName = processUploadedFile(labelUploadRequest.file(), labelUploadRequest.labelDTO().getName());
-
+            String newFileName = processUploadedFile(labelUploadRequest.file(), false);
+            label.setId(UUID.fromString(getFileName(newFileName))); // set id from file name to make the file name as the id
             label.setName(labelUploadRequest.labelDTO().getName());
             label.setPrice(labelUploadRequest.labelDTO().getPrice());
             label.setDescription(labelUploadRequest.labelDTO().getDescription());
             label.setLabelURL(newFileName);
             label.setCreatedBy(user);
             label.setStatus(labelUploadRequest.labelDTO().getStatus());
-            System.out.println("user_id neu file != null: " + user.getId());
             labelRepository.save(label);
+            labelRedisService.clearByKey("labels");
         }
 
         return mapToDTO(label, new LabelDTO());
@@ -165,29 +192,8 @@ public class LabelService {
 
         // neu co file duoc chon -> co du lieu file
         if (labelUploadRequest.file() != null) {
-            // xoa file cu
-            java.nio.file.Path uploadDir = Paths.get("uploads");
-            String oldFileName = uploadDir + "/" +  label.getLabelURL();
-            File oldFile = new File(oldFileName);
-            if (oldFile.exists()) {
-                oldFile.delete();
-            }
-
-            // upload file moi
-            String newFileName = processUploadedFile(labelUploadRequest.file(), labelUploadRequest.labelDTO().getName());
-            label.setLabelURL(newFileName);
-
-        }
-        // neu ko co file duoc chon -> ko co du lieu file
-        // doi ten file hien tai thanh ten moi
-        else {
-            String oldFileName = label.getLabelURL(); // test8.gif
-            String newFileName = labelUploadRequest.labelDTO().getName() + ".gif"; // test9.gif
-            java.nio.file.Path oldFilePath = Paths.get("uploads", oldFileName); // uploads/test8.gif
-            java.nio.file.Path newFilePath = Paths.get("uploads", newFileName); // uploads/test9.gif
-            Files.move(oldFilePath, newFilePath, StandardCopyOption.REPLACE_EXISTING); // move test8 -> test9
-
-            label.setLabelURL(newFileName);
+            String fileName = processUploadedFile(labelUploadRequest.file(), true);
+            label.setLabelURL(fileName);
         }
 
         label.setName(labelUploadRequest.labelDTO().getName());
@@ -195,8 +201,10 @@ public class LabelService {
         label.setDescription(labelUploadRequest.labelDTO().getDescription());
         label.setCreatedBy(user);
         label.setStatus(labelUploadRequest.labelDTO().getStatus());
-
         labelRepository.save(label);
+        labelRedisService.clearByKey("label::" + id);
+        labelRedisService.clearByKey("labels");
+        labelRedisService.clearByKey("labelsWithPurchaseStatus::" + user.getId());
         return mapToDTO(label, new LabelDTO());
     }
 
@@ -210,22 +218,22 @@ public class LabelService {
         return labelIds.contains(labelId);
     }
 
-    public List<LabelResponseDTO> getAllLabelUserPurchased (UUID user_id) {
-        // lay ra tat ca cac label tu db
-        List<Label> labels = labelRepository.findAll();
-
-        // lay thong tin cac label ma nguoi dung da mua
-        List<UserLabelInfo> userLabelInfos = userLabelInfoRepository.findByUserId(user_id);
-
-        // chuyen danh sach UserLabelInfo sang danh sach ID Label ma nguoi dung da mua
-        Set<UUID> purcharsedLabelIds = userLabelInfos.stream()
-                .map(userLabelInfo -> userLabelInfo.getLabel().getId())
-                .collect(Collectors.toSet());
-
-        // tao danh sach DTO de tra ve, moi DTO chua thong tin label va trang thai mua
-        return labels.stream()
-                .filter(label -> purcharsedLabelIds.contains(label.getId())) // Chỉ lấy các label có trong purchasedLabelIds
-                .map(label -> new LabelResponseDTO(label, true)) // Đánh dấu label đã mua
-                .collect(Collectors.toList());
-    }
+//    public List<LabelResponseDTO> getAllLabelUserPurchased (UUID user_id) {
+//        // lay ra tat ca cac label tu db
+//        List<Label> labels = labelRepository.findAll();
+//
+//        // lay thong tin cac label ma nguoi dung da mua
+//        List<UserLabelInfo> userLabelInfos = userLabelInfoRepository.findByUserId(user_id);
+//
+//        // chuyen danh sach UserLabelInfo sang danh sach ID Label ma nguoi dung da mua
+//        Set<UUID> purcharsedLabelIds = userLabelInfos.stream()
+//                .map(userLabelInfo -> userLabelInfo.getLabel().getId())
+//                .collect(Collectors.toSet());
+//
+//        // tao danh sach DTO de tra ve, moi DTO chua thong tin label va trang thai mua
+//        return labels.stream()
+//                .filter(label -> purcharsedLabelIds.contains(label.getId())) // Chỉ lấy các label có trong purchasedLabelIds
+//                .map(label -> new LabelResponseDTO(label, true)) // Đánh dấu label đã mua
+//                .collect(Collectors.toList());
+//    }
 }
