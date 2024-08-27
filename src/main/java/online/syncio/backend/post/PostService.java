@@ -341,6 +341,7 @@ public class PostService {
         Optional<Post> postOptional = postRepository.findById(postId);
         postOptional.ifPresent(post -> {
             post.setVisibility(PostEnum.BLOCKED);
+            post.setFlag(false);
             postRepository.save(post);
         });
         return postOptional;
