@@ -31,7 +31,7 @@ public class CommentLikeService {
         final UUID currentUserId = authUtils.getCurrentLoggedInUserId();
         // Not logged in
         if(currentUserId == null) {
-            throw new AppException(HttpStatus.FORBIDDEN, "You must be logged in to like a comment", null);
+            throw new AppException(HttpStatus.UNAUTHORIZED, "You must be logged in to like a comment", null);
         }
         Optional<CommentLike> commentLikeOptional = commentLikeRepository.findByCommentIdAndUserId(commentId, currentUserId);
         return commentLikeOptional.isPresent();

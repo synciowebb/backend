@@ -252,7 +252,7 @@ public class PostService {
     public User getCurrentUser() {
         UUID currentUserId = authUtils.getCurrentLoggedInUserId();
         if(currentUserId == null) {
-            throw new AppException(HttpStatus.FORBIDDEN, "You must be logged in.", null);
+            throw new AppException(HttpStatus.UNAUTHORIZED, "You must be logged in.", null);
         }
         return userRepository.findById(currentUserId)
                 .orElseThrow(() -> new NotFoundException(User.class, "id", currentUserId.toString()));

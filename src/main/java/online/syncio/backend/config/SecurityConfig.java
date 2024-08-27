@@ -88,6 +88,11 @@ public class SecurityConfig implements WebMvcConfigurer {
                     .addFilterBefore(jwtTokenFilter, UsernamePasswordAuthenticationFilter.class)
                     .authorizeHttpRequests(requests -> {
                         requests
+                        .requestMatchers("/api/v1/swagger-ui/**").permitAll()
+                        .requestMatchers("/api/v1/api-docs/**").permitAll()
+                        .requestMatchers("/api/v1/swagger-resources/**").permitAll()
+                        .requestMatchers("/api/v1/configuration/ui").permitAll()
+                        .requestMatchers("/api/v1/configuration/security").permitAll()
                         .anyRequest().permitAll()
                         ;
                     })

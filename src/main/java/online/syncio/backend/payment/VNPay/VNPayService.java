@@ -67,7 +67,7 @@ public class VNPayService {
         UUID buyerId = authUtils.getCurrentLoggedInUserId();
         // Not logged in
         if (buyerId == null) {
-            throw new AppException(HttpStatus.FORBIDDEN, "You must be logged in to buy a label", null);
+            throw new AppException(HttpStatus.UNAUTHORIZED, "You must be logged in to buy a label", null);
         }
 
         UUID ownerId = buyerId;

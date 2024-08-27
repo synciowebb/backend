@@ -24,7 +24,7 @@ FROM openjdk:17-slim
 WORKDIR /opt
 
 # Copy the built JAR file(s) from the build stage
-COPY --from=build /opt/target/*.jar /opt/
+COPY --from=build /opt/target/*.jar /opt/app.jar
 
 ENTRYPOINT exec java $JAVA_OPTS -jar /opt/app.jar
 
